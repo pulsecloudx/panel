@@ -1,14 +1,21 @@
 import useSWR from 'swr';
-import loadDirectory, { FileObject, PaginatedDirectory } from '@/api/server/files/loadDirectory';
+import loadDirectory, { PaginatedDirectory } from '@/api/server/files/loadDirectory';
 import { cleanDirectoryPath } from '@/helpers';
-import { ServerContext } from '@/state/server';
+import { ServerContext, ServerStore } from '@/state/server';
 
 export const getDirectorySwrKey = (uuid: string, directory: string): string =>
     `${uuid}:files:${directory}`;
 
 export default () => {
-    const uuid = ServerContext.useStoreState((state) => state.server.data!.uuid);
-    const directory = ServerContext.useStoreState((state) => state.files.directory);
+    // ✅ uuid certo
+    const uuid = ServerContext.useStoreState(
+        (state: ServerStore) => state.server.data!.uuid
+    );
+
+    // ✅ directory certo
+    const directory = ServerContext.useStoreState(
+        (state: ServerStore) => state.files.directory
+    );
 
     const swr = useSWR<PaginatedDirectory>(
         getDirectorySwrKey(uuid, directory),
@@ -24,8 +31,10 @@ export default () => {
     return {
         ...swr,
 
-        // 🔥 aqui está a mágica
+        // 👉 FileManager espera array
         data: swr.data?.data ?? [],
+
+        // 👉 meta pra paginação futura
         meta: swr.data?.meta,
     };
 };
