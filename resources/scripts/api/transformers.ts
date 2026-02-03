@@ -12,47 +12,54 @@ export const rawDataToServerAllocation = (data: FractalResponseData): Allocation
     isDefault: data.attributes.is_default,
 });
 
-export const rawDataToFileObject = (data: FractalResponseData): FileObject => ({
-    key: `${data.attributes.is_file ? 'file' : 'dir'}_${data.attributes.name}`,
-    name: data.attributes.name,
-    mode: data.attributes.mode,
-    modeBits: data.attributes.mode_bits,
-    size: Number(data.attributes.size),
-    isFile: data.attributes.is_file,
-    isSymlink: data.attributes.is_symlink,
-    mimetype: data.attributes.mimetype,
-    createdAt: new Date(data.attributes.created_at),
-    modifiedAt: new Date(data.attributes.modified_at),
+const ARCHIVE_EXTENSIONS = new Set([
+    'zip','rar','7z','tar','gz','bz2','xz','zst','lz','lz4','br'
+]);
 
-    isArchiveType: function () {
-        return (
-            this.isFile &&
-            [
-                'application/vnd.rar', // .rar
-                'application/x-rar-compressed', // .rar (2)
-                'application/x-tar', // .tar
-                'application/x-br', // .tar.br
-                'application/x-bzip2', // .tar.bz2, .bz2
-                'application/gzip', // .tar.gz, .gz
-                'application/x-gzip',
-                'application/x-lzip', // .tar.lz4, .lz4 (not sure if this mime type is correct)
-                'application/x-sz', // .tar.sz, .sz (not sure if this mime type is correct)
-                'application/x-xz', // .tar.xz, .xz
-                'application/zstd', // .tar.zst, .zst
-                'application/zip', // .zip
-                'application/x-7z-compressed', // .7z
-            ].indexOf(this.mimetype) >= 0
-        );
-    },
+const EDITABLE_BLOCKED_MIME = [
+    'application/octet-stream',
+    'application/jar',
+];
 
-    isEditable: function () {
-        if (this.isArchiveType() || !this.isFile) return false;
+export const rawDataToFileObject = (data: FractalResponseData): FileObject => {
+    const a = data.attributes;
 
-        const matches = ['application/jar', 'application/octet-stream', 'inode/directory', /^image\/(?!svg\+xml)/];
+    const extension = a.name?.split('.').pop()?.toLowerCase() ?? '';
 
-        return matches.every((m) => !this.mimetype.match(m));
-    },
-});
+    const isArchive =
+        a.is_file &&
+        (ARCHIVE_EXTENSIONS.has(extension) ||
+         a.mimetype?.includes('zip') ||
+         a.mimetype?.includes('compressed') ||
+         a.mimetype?.includes('tar'));
+
+    return {
+        key: `${a.is_file ? 'file' : 'dir'}_${a.name}`,
+        name: a.name,
+        mode: a.mode,
+        modeBits: a.mode_bits,
+        size: Number(a.size),
+        isFile: a.is_file,
+        isSymlink: a.is_symlink,
+        mimetype: a.mimetype,
+        createdAt: new Date(a.created_at),
+        modifiedAt: new Date(a.modified_at),
+
+        isArchiveType: () => isArchive,
+
+        isEditable: () => {
+            if (!a.is_file || isArchive) return false;
+
+            if (EDITABLE_BLOCKED_MIME.includes(a.mimetype)) return false;
+
+            if (a.mimetype.startsWith('image/') && !a.mimetype.includes('svg'))
+                return false;
+
+            return true;
+        },
+    };
+};
+
 
 export const rawDataToServerBackup = ({ attributes }: FractalResponseData): ServerBackup => ({
     uuid: attributes.uuid,
