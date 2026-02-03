@@ -41,15 +41,25 @@ class FileController extends ClientApiController
      * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
      */
     public function directory(ListFilesRequest $request, Server $server): array
-    {
-        $contents = $this->fileRepository
-            ->setServer($server)
-            ->getDirectory($request->get('directory') ?? '/');
+{
+    $response = $this->fileRepository
+        ->setServer($server)
+        ->getDirectory($request->get('directory') ?? '/');
 
-        return $this->fractal->collection($contents)
+    // Se Wings retornou paginado
+    if (isset($response['data'])) {
+        return $this->fractal->collection($response['data'])
             ->transformWith($this->getTransformer(FileObjectTransformer::class))
+            ->addMeta($response['meta'] ?? [])
             ->toArray();
     }
+
+    // Compatibilidade com retorno antigo
+    return $this->fractal->collection($response)
+        ->transformWith($this->getTransformer(FileObjectTransformer::class))
+        ->toArray();
+}
+
 
     /**
      * Return the contents of a specified file for the user.
