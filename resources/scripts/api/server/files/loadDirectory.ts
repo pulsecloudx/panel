@@ -41,7 +41,7 @@ export default async (
     uuid: string,
     directory: string = '/',
     page: number = 1,
-    perPage: number = 100
+    perPage: number = 210
 ): Promise<PaginatedDirectory> => {
     const { data } = await http.get(`/api/client/servers/${uuid}/files/list`, {
         params: {
